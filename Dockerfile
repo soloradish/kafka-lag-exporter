@@ -7,8 +7,8 @@ FROM eclipse-temurin:17-jre
 
 # Bash is already included in this image
 
-# Create non-root user
-RUN adduser -S -u 1001 kafkalagexporter
+# Create non-root user (Ubuntu/Debian syntax)
+RUN useradd --system --uid 1001 --create-home --shell /bin/bash kafkalagexporter
 
 # Set working directory
 WORKDIR /opt/docker
