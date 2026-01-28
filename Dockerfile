@@ -2,10 +2,10 @@
 # This Dockerfile expects the application to be pre-built using sbt stage
 # and the staged files to be in target/universal/stage directory
 
-FROM eclipse-temurin:17-jre-alpine
+# Use non-alpine version for better multi-platform support (amd64 + arm64)
+FROM eclipse-temurin:17-jre
 
-# Install bash
-RUN apk add --no-cache bash
+# Bash is already included in this image
 
 # Create non-root user
 RUN adduser -S -u 1001 kafkalagexporter
