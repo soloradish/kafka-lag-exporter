@@ -7,9 +7,12 @@ on:
 jobs:
   release:
     # runs on main repo only
-    if: github.repository == 'seglo/kafka-lag-exporter'
+    if: github.repository == 'soloradish/kafka-lag-exporter'
     name: Release
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      packages: write
     strategy:
       fail-fast: false
     steps:
@@ -32,19 +35,57 @@ jobs:
       - name: Cache Coursier cache
         uses: coursier/cache-action@v6
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build, test, and publish
-        run: |+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version
+        id: version
+        run: |
           TAG=$(git describe --tags --abbrev=0 | sed "s/v//g")
-          sbt "release with-defaults release-version $TAG"
+          echo "VERSION=$TAG" >> $GITHUB_OUTPUT
+          echo "Building version $TAG"
+
+      - name: Build and test
+        run: |
+          sbt ";clean;test;universal:stage"
+
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/soloradish/kafka-lag-exporter:${{ steps.version.outputs.VERSION }}
+            ghcr.io/soloradish/kafka-lag-exporter:latest
+          labels: |
+            org.opencontainers.image.title=kafka-lag-exporter
+            org.opencontainers.image.description=Kafka lag exporter finds and reports Kafka consumer group lag metrics
+            org.opencontainers.image.vendor=Lightbend Inc. <http://www.lightbend.com> (2018-2022), Sean Glover <https://seanglover.com/> (2022+)
+            org.opencontainers.image.authors=sean@seanglover.com
+            org.opencontainers.image.url=https://github.com/soloradish/kafka-lag-exporter
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.licenses=Apache-2.0: https://www.apache.org/licenses/LICENSE-2.0.txt
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update Helm Chart and commit
+        run: |
+          TAG=${{ steps.version.outputs.VERSION }}
+          ./scripts/update_chart.sh $TAG ghcr.io/soloradish/kafka-lag-exporter
+          ./scripts/package_chart.sh
+          ./scripts/build_charts_index.sh https://github.com/soloradish/kafka-lag-exporter/releases/download/v$TAG/ https://soloradish.github.io/kafka-lag-exporter/repo/index.yaml
+          sbt universal:packageBin
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add . && git commit -m "Released v$TAG"
+          git add . && git commit -m "Released v$TAG" || echo "No changes to commit"
 
       - name: Push changes
         uses: ad-m/github-push-action@v0.6.0

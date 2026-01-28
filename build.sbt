@@ -56,11 +56,14 @@ lazy val kafkaLagExporter =
         TestcontainersInfluxDb,
         TestcontainersRedis
       ),
+      // Docker configuration for metadata and scripts
+      // Note: Actual Docker builds are done via Docker Buildx in GitHub Actions
+      // The settings below are used for generating image names and updating Helm charts
       dockerApiVersion := Some(DockerApiVersion(1, 41)),
       dockerRepository := Option(System.getenv("DOCKER_REPOSITORY"))
-        .orElse(None),
+        .orElse(Some("ghcr.io")),
       dockerUsername := Option(System.getenv("DOCKER_USERNAME"))
-        .orElse(Some("seglo")),
+        .orElse(Some("soloradish")),
       dockerUpdateLatest := true,
       dockerPermissionStrategy := DockerPermissionStrategy.None,
       dockerExposedPorts := Seq(8000),
@@ -147,13 +150,13 @@ lazy val commonSettings = Seq(
   organization := "com.lightbend.kafkalagexporter",
   organizationName := "Lightbend Inc. <http://www.lightbend.com> (2018-2022), Sean Glover <https://seanglover.com/> (2022+)",
   organizationHomepage := Some(url("https://seanglover.com/")),
-  homepage := Some(url("https://github.com/seglo/kafka-lag-exporter")),
+  homepage := Some(url("https://github.com/soloradish/kafka-lag-exporter")),
   maintainer := "sean@seanglover.com",
   licenses += ("Apache-2.0", new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
   )),
   scmInfo := Some(
-    ScmInfo(homepage.value.get, "git@github.com:seglo/kafka-lag-exporter.git")
+    ScmInfo(homepage.value.get, "git@github.com:soloradish/kafka-lag-exporter.git")
   ),
   developers += Developer(
     "contributors",
@@ -255,7 +258,7 @@ lazy val buildChartsIndex = ReleaseStep(action = st => {
       )
     )
   exec(
-    s"./scripts/build_charts_index.sh https://github.com/seglo/kafka-lag-exporter/releases/download/v$releaseVersion/ https://seglo.github.io/kafka-lag-exporter/repo/index.yaml",
+    s"./scripts/build_charts_index.sh https://github.com/soloradish/kafka-lag-exporter/releases/download/v$releaseVersion/ https://soloradish.github.io/kafka-lag-exporter/repo/index.yaml",
     "Error while building Helm Charts index"
   )
   st
